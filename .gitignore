@@ -1,0 +1,28 @@
+node_modules/
+*.log
+*.err
+*.tmp
+*.swp
+*.bak
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# 测试产物
+probe_*.bin
+*.decoded

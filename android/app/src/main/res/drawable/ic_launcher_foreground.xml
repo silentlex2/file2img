@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 文件（左上，描边） -->
+    <path
+        android:pathData="M34,30 h20 l10,10 v34 h-30 z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- 文件折角 -->
+    <path
+        android:pathData="M54,30 v10 h10"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- 文件内两条线 -->
+    <path android:pathData="M41,48 h14" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round" />
+    <path android:pathData="M41,57 h10" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round" />
+
+    <!-- 图片（右下，实心圆角方块） -->
+    <path
+        android:pathData="M52,54 h24 a4,4 0 0 1 4,4 v22 a4,4 0 0 1 -4,4 h-24 a4,4 0 0 1 -4,-4 v-22 a4,4 0 0 1 4,-4 z"
+        android:fillColor="#4F8CFF" />
+    <!-- 图片内的山 -->
+    <path
+        android:pathData="M53,78 l8,-9 l6,6 l4,-4 l5,7 z"
+        android:fillColor="#FFFFFF" />
+    <!-- 太阳 -->
+    <path
+        android:pathData="M61,64 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+        android:fillColor="#FFFFFF" />
+</vector>
