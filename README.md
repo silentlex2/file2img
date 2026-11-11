@@ -91,11 +91,16 @@ node file2img.mjs extract stego.png secret_out.txt [--password 1234]
 
 ### 2. PC 端收发（Windows）
 
-- **轻量一体收发（推荐，单进程 + Win32 事件监听）**：
+- **极简低内存模式（推荐，待机零 Node · 约 `15 MB` 私有内存）**：
+  先运行一次 `node pc/watch.mjs --once <任意文件>`（或用 `.NET csc.exe` 编译 `pc/clipagent.cs` 到 `%LOCALAPPDATA%\f2i\clipagent.exe`），之后直接常驻运行：
+  ```bash
+  "%LOCALAPPDATA%\f2i\clipagent.exe" --relay D:\file2img --log D:\file2img\pc\relay.log
+  ```
+  由轻量 Win32 事件外壳同时监听文件夹与剪贴板（待机不加载 `WinForms`/`System.Drawing`，也不常驻 `node.exe`），仅在收发文件时按需拉起一次 `node` 处理后立刻释放内存。
+- **Node 单进程常驻模式（零冷启动延迟）**：
   ```bash
   node pc/watch.mjs --with-recv
   ```
-  首次运行会自动调用 Windows 内置 `.NET csc.exe` 编译轻量剪贴板助手 `clipagent.exe`（仅占约 `21 MB` 内存，替代 PowerShell 常驻），与发送监听共用同一个 `node.exe` 进程，实现低内存双向收发。
 - **分开运行（传统模式）**：
   - 发送常驻监听：`node pc/watch.mjs`（默认监听 `Desktop\f2i`，丢入文件即自动编码并写入剪贴板）
   - 单次拖放：把文件直接拖到 `pc/发送为图片.bat` 上

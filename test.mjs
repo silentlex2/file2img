@@ -252,6 +252,14 @@ try {
   assert.equal(sha256(fs.readFileSync(bigRestored.dest)), sha256(big55));
   console.log(`PASS 10. 5.5MB 大文件自动分片 (${bigParts.length} 张, 每张 < 5MB) 还原校验通过`);
 
+  // 11. Windows clipagent.exe 事件监听管道冒烟验证（若已编译存在）
+  const clipExe = path.join(process.env.LOCALAPPDATA || '', 'f2i', 'clipagent.exe');
+  if (process.platform === 'win32' && fs.existsSync(clipExe)) {
+    const out = execFileSync(clipExe, ['--watch'], { input: 'QUIT\n', encoding: 'utf8' });
+    assert.equal(out.trim(), 'READY');
+    console.log('PASS 11. clipagent.exe --watch 事件循环与退出验证通过');
+  }
+
   console.log('\nALL TESTS PASSED');
 } finally {
   fs.rmSync(tmpDir, { recursive: true, force: true });

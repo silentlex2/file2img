@@ -518,7 +518,7 @@ export {
 
 function parseCli(argv) {
   const pos = [];
-  const opts = { compress: true, password: '', cols: 0, maxPartBytes: DEFAULT_PART_BYTES };
+  const opts = { compress: true, password: process.env.F2I_PASSWORD || '', cols: 0, maxPartBytes: DEFAULT_PART_BYTES };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--no-compress') opts.compress = false;
