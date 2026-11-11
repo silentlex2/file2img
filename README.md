@@ -99,7 +99,7 @@ node file2img.mjs extract stego.png secret_out.txt [--password 1234]
   ```powershell
   powershell -ExecutionPolicy Bypass -File pc/cliprecv.ps1 [-Password 1234]
   ```
-  自动监听剪贴板图片（跳过本机 `clip.ps1` 发出的图），还原到 `Desktop\f2i\recv\`。
+  自动监听剪贴板图片（跳过本机 `clip.ps1` 发出的图），还原到 `Desktop\f2i\recv\`（也支持通过环境变量 `F2I_RECV` 或 `F2I_IN` 指定接收目录）。
 
 ### 3. 手机端接收/发送
 

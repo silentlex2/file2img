@@ -1,5 +1,9 @@
 ﻿param(
-  [string]$OutDir = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'f2i\recv'),
+  [string]$OutDir = $(
+    if ($env:F2I_RECV) { $env:F2I_RECV }
+    elseif ($env:F2I_IN) { Join-Path $env:F2I_IN 'recv' }
+    else { Join-Path ([Environment]::GetFolderPath('Desktop')) 'f2i\recv' }
+  ),
   [int]$Seconds = 86400,
   [string]$Password = ''
 )
