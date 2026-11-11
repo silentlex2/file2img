@@ -91,15 +91,20 @@ node file2img.mjs extract stego.png secret_out.txt [--password 1234]
 
 ### 2. PC 端收发（Windows）
 
-- **发送**：
-  - 常驻监听：`node pc/watch.mjs`（默认监听 `Desktop\f2i`，丢入文件即自动编码并写入剪贴板）
-  - 单次拖放：把文件直接拖到 `pc/发送为图片.bat` 上
-  - 可选环境变量：`F2I_IN`、`F2I_OUT`、`F2I_PART_MB`（默认 `4.7`）、`F2I_MAX_MB`（默认 `50`）、`F2I_PART_DELAY_MS`（多分片间隔，默认 `2500`）、`F2I_PASSWORD`
-- **接收**：
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File pc/cliprecv.ps1 [-Password 1234]
+- **轻量一体收发（推荐，单进程 + Win32 事件监听）**：
+  ```bash
+  node pc/watch.mjs --with-recv
   ```
-  自动监听剪贴板图片（跳过本机 `clip.ps1` 发出的图），还原到 `Desktop\f2i\recv\`（也支持通过环境变量 `F2I_RECV` 或 `F2I_IN` 指定接收目录）。
+  首次运行会自动调用 Windows 内置 `.NET csc.exe` 编译轻量剪贴板助手 `clipagent.exe`（仅占约 `21 MB` 内存，替代 PowerShell 常驻），与发送监听共用同一个 `node.exe` 进程，实现低内存双向收发。
+- **分开运行（传统模式）**：
+  - 发送常驻监听：`node pc/watch.mjs`（默认监听 `Desktop\f2i`，丢入文件即自动编码并写入剪贴板）
+  - 单次拖放：把文件直接拖到 `pc/发送为图片.bat` 上
+  - 接收（PowerShell）：
+    ```powershell
+    powershell -ExecutionPolicy Bypass -File pc/cliprecv.ps1 [-Password 1234]
+    ```
+    自动监听剪贴板图片（跳过本机发出的图），还原到 `Desktop\f2i\recv\`（也支持通过环境变量 `F2I_RECV` 或 `F2I_IN` 指定接收目录）。
+- 可选环境变量：`F2I_IN`、`F2I_OUT`、`F2I_RECV`、`F2I_PART_MB`（默认 `4.7`）、`F2I_MAX_MB`（默认 `50`）、`F2I_PART_DELAY_MS`（多分片间隔，默认 `2500`）、`F2I_PASSWORD`、`F2I_LOG`
 
 ### 3. 手机端接收/发送
 
