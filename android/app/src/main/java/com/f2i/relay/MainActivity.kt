@@ -97,8 +97,30 @@ class MainActivity : AppCompatActivity() {
             try { startForegroundService(Intent(this, RelayService::class.java)) } catch (_: Exception) {}
         }
 
+        // 下次冷启动软件时清理上一次发送遗留的临时图片
+        if (savedInstanceState == null) {
+            cleanupLastSendAsync(minAgeMs = 0L)
+        }
+
         renderIfChanged()
         ui.post(refresher)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // singleTask 模式下从桌面再次打开软件时，清理上一次发送的临时图片
+        cleanupLastSendAsync(minAgeMs = 3_000L)
+    }
+
+    private fun cleanupLastSendAsync(minAgeMs: Long) {
+        val appCtx = applicationContext
+        Thread {
+            val deleted = RelayState.cleanupPendingSendImages(appCtx, minAgeMs)
+            if (deleted > 0) {
+                RelayState.add("已清理上次发送的 $deleted 张临时图")
+            }
+        }.start()
     }
 
     override fun onDestroy() {
@@ -229,7 +251,8 @@ class MainActivity : AppCompatActivity() {
                 val values = ContentValues().apply {
                     put(MediaStore.Images.Media.DISPLAY_NAME, "f2i_${System.currentTimeMillis()}$suffix.png")
                     put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/DoubaoIme")
+                    // 使用独立目录而非 Pictures/DoubaoIme，避免与接收目录混用
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/f2i")
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 }
                 val outUri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
@@ -237,8 +260,16 @@ class MainActivity : AppCompatActivity() {
                     RelayState.add("插入相册失败")
                     return
                 }
+                // 先于写入和解除 IS_PENDING 登记去重与待清理记录，避免触发自身扫描或漏删
+                try {
+                    RelayState.markSelfCreated(this, ContentUris.parseId(outUri))
+                } catch (_: Exception) {}
+                RelayState.addPendingSendUri(this, outUri.toString())
+                RelayState.recordSelfHash(this, RelayState.sha256Hex(partBytes))
+
                 val os = contentResolver.openOutputStream(outUri)
                 if (os == null) {
+                    RelayState.removePendingSendUri(this, outUri.toString())
                     try { contentResolver.delete(outUri, null, null) } catch (_: Exception) {}
                     RelayState.add("写入相册失败")
                     return
@@ -247,10 +278,6 @@ class MainActivity : AppCompatActivity() {
                 values.clear()
                 values.put(MediaStore.Images.Media.IS_PENDING, 0)
                 contentResolver.update(outUri, values, null, null)
-
-                try {
-                    RelayState.markSelfCreated(this, ContentUris.parseId(outUri))
-                } catch (_: Exception) {}
                 outUris.add(outUri)
                 dims.add(Pair(w, h))
             }

@@ -146,4 +146,28 @@ class CodecTest {
             fail("expected truncated png error")
         } catch (_: Exception) { }
     }
+
+    @Test
+    fun relayStatePendingAndSelfHash() {
+        val text = "验证发送指纹与下次启动清理".repeat(20).toByteArray(Charsets.UTF_8)
+        val packRes = Payload.packParts(text, "note.txt", compress = true)
+        val partBytes = packRes.parts[0]
+        val sendHash = RelayState.sha256Hex(partBytes)
+
+        val decoded = PngCodec.decode(toPng(partBytes))
+        val raw = Payload.unpackRawBody(decoded.rgb)
+        val recvHash = RelayState.sha256Hex(decoded.rgb, raw.header.bodyOffset + raw.header.bodyLen)
+        assertEquals(sendHash, recvHash)
+
+        RelayState.recordSelfHash(null, sendHash, nowMs = 1_000L)
+        assertTrue(RelayState.isRecentSelfHash(sendHash, nowMs = 5_000L))
+        assertFalse(RelayState.isRecentSelfHash(sendHash, nowMs = 700_000L))
+
+        RelayState.addPendingSendUri(null, "content://media/external/images/media/101", nowMs = 1_000L)
+        RelayState.addPendingSendUri(null, "content://media/external/images/media/102", nowMs = 9_000L)
+        val claimed = RelayState.claimPendingSendUris(null, minAgeMs = 3_000L, nowMs = 10_000L)
+        assertEquals(listOf("content://media/external/images/media/101"), claimed)
+        val rest = RelayState.claimPendingSendUris(null, minAgeMs = 0L, nowMs = 10_000L)
+        assertEquals(listOf("content://media/external/images/media/102"), rest)
+    }
 }

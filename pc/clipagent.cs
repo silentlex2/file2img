@@ -68,6 +68,44 @@ namespace F2IClip {
             }
             return false;
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static string ComputePixelHash(byte[] pngBytes) {
+            using (var ms = new MemoryStream(pngBytes))
+            using (var rawImg = Image.FromStream(ms)) {
+                Bitmap ownedSrc = rawImg is Bitmap ? null : new Bitmap(rawImg);
+                Bitmap srcBmp = (rawImg as Bitmap) ?? ownedSrc;
+                Bitmap ownedRgb = srcBmp.PixelFormat == PixelFormat.Format24bppRgb
+                    ? null
+                    : srcBmp.Clone(new Rectangle(0, 0, srcBmp.Width, srcBmp.Height), PixelFormat.Format24bppRgb);
+                Bitmap rgbBmp = ownedRgb ?? srcBmp;
+                try {
+                    var rect = new Rectangle(0, 0, rgbBmp.Width, rgbBmp.Height);
+                    var data = rgbBmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                    try {
+                        int rowBytes = rgbBmp.Width * 3;
+                        byte[] rgb = new byte[rgbBmp.Height * rowBytes];
+                        for (int y = 0; y < rgbBmp.Height; y++) {
+                            Marshal.Copy(new IntPtr(data.Scan0.ToInt64() + (long)y * data.Stride), rgb, y * rowBytes, rowBytes);
+                        }
+                        using (var sha = SHA256.Create()) {
+                            byte[] dim = Encoding.ASCII.GetBytes(rgbBmp.Width + "x" + rgbBmp.Height + ":");
+                            sha.TransformBlock(dim, 0, dim.Length, null, 0);
+                            sha.TransformFinalBlock(rgb, 0, rgb.Length);
+                            byte[] h = sha.Hash;
+                            var sb = new StringBuilder(h.Length * 2);
+                            for (int i = 0; i < h.Length; i++) sb.Append(h[i].ToString("x2"));
+                            return sb.ToString();
+                        }
+                    } finally {
+                        rgbBmp.UnlockBits(data);
+                    }
+                } finally {
+                    if (ownedRgb != null) ownedRgb.Dispose();
+                    if (ownedSrc != null) ownedSrc.Dispose();
+                }
+            }
+        }
     }
 
     static class Program {
@@ -189,6 +227,26 @@ namespace F2IClip {
         static uint _cfPng;
         static uint _cfLocalOrigin;
         static string _lastHash = "";
+        static readonly List<KeyValuePair<string, DateTime>> _selfPixelHashes = new List<KeyValuePair<string, DateTime>>();
+
+        static void RememberSelfPixelHash(string hash) {
+            if (string.IsNullOrEmpty(hash)) return;
+            DateTime now = DateTime.UtcNow;
+            DateTime cutoff = now.AddMinutes(-5);
+            _selfPixelHashes.RemoveAll(kv => kv.Value < cutoff || kv.Key == hash);
+            _selfPixelHashes.Add(new KeyValuePair<string, DateTime>(hash, now));
+            if (_selfPixelHashes.Count > 50) _selfPixelHashes.RemoveAt(0);
+        }
+
+        static bool IsRecentSelfPixelHash(string hash) {
+            if (string.IsNullOrEmpty(hash)) return false;
+            DateTime cutoff = DateTime.UtcNow.AddMinutes(-5);
+            _selfPixelHashes.RemoveAll(kv => kv.Value < cutoff);
+            for (int i = 0; i < _selfPixelHashes.Count; i++) {
+                if (_selfPixelHashes[i].Key == hash) return true;
+            }
+            return false;
+        }
 
         static readonly object _logLock = new object();
         static readonly Queue<Action> _staQueue = new Queue<Action>();
@@ -319,6 +377,13 @@ namespace F2IClip {
             try {
                 // 纯 Win32 预检：复制文本/非图片文件时直接返回，不加载 WinForms/Drawing/Node
                 if (_cfLocalOrigin != 0 && IsClipboardFormatAvailable(_cfLocalOrigin)) {
+                    try {
+                        byte[] selfPng;
+                        string selfSrc;
+                        if (LazyClipboard.TryExtractClipboardPng(out selfPng, out selfSrc)) {
+                            RememberSelfPixelHash(LazyClipboard.ComputePixelHash(selfPng));
+                        }
+                    } catch { }
                     if (_relayMode) Log("跳过本机发出的载荷图");
                     else Emit("SKIP_LOCAL");
                     return;
@@ -338,6 +403,13 @@ namespace F2IClip {
                         string hash = Sha256Hex(pngBytes);
                         if (hash == _lastHash) return;
                         _lastHash = hash;
+                        try {
+                            if (IsRecentSelfPixelHash(LazyClipboard.ComputePixelHash(pngBytes))) {
+                                if (_relayMode) Log("跳过本机发出的载荷图");
+                                else Emit("SKIP_LOCAL");
+                                return;
+                            }
+                        } catch { }
                         string tmp = Path.Combine(Path.GetTempPath(), "f2icb_" + Guid.NewGuid().ToString("N") + ".png");
                         File.WriteAllBytes(tmp, pngBytes);
                         if (_relayMode) RunNodeRestore(source, tmp, true);

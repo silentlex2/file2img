@@ -45,6 +45,13 @@ class RelayService : Service() {
         )
         RelayState.setRunning(true)
         createChannel()
+        val appCtx = applicationContext
+        worker.execute {
+            val deleted = RelayState.cleanupPendingSendImages(appCtx, minAgeMs = 5_000L)
+            if (deleted > 0) {
+                RelayState.add("已清理上次发送的 $deleted 张临时图")
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -133,6 +140,11 @@ class RelayService : Service() {
             }
             val raw = Payload.unpackRawBody(img.rgb)
             val h = raw.header
+            val payloadHash = RelayState.sha256Hex(img.rgb, h.bodyOffset + h.bodyLen)
+            if (RelayState.isRecentSelfHash(payloadHash)) {
+                RelayState.add("跳过本机发出的载荷图")
+                return
+            }
             val safeName = Payload.sanitizeFilename(h.name)
 
             if (!h.chunked) {
